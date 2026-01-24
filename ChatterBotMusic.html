@@ -10,6 +10,7 @@ try{
     var pos=0
     
     var finalList=[]
+    var pitch1=1
 
     var loading=0
 
@@ -165,8 +166,8 @@ try{
                     }
                     if(words<0){
                         finalList=finalText.split(".")
+                        pitch1=rand(20,180)/100
                         readText(finalList.shift())
-
                         clearInterval(Inter)
                     }
                 },0)
@@ -205,7 +206,7 @@ function isSpeechQueueEmpty() {
 document.getElementById("out").innerHTML=text
         var msg = new SpeechSynthesisUtterance();
         msg.text = text
-        msg.pitch=1.6+rand(-10,10)/100//rand(1,180)/100
+        msg.pitch=pitch1+rand(-10,10)/100//rand(1,180)/100
         msg.rate=2+rand(-10,10)/50//rand(1,40)/10
         window.speechSynthesis.speak(msg);
     }
