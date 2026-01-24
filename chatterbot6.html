@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>
+            ChatterBot 6
+        </title>
+        <style>
+            #working{
+                position: fixed;
+                width:100%;
+                left: 10;
+                bottom: 0;
+                text-align: center;
+                background-color: white;
+            }
+        </style>
+    </head>
+    <body>
+        <h1 style="text-align: center;">ChatterBot 6</h1>
+        <marquee id="scroll">Better than ChatterBot 5</marquee>
+        <hr>
+        <p id="output" style="margin: 50px;"></p>
+        <br><br><br><br>
+        <div id="working">
+            <hr>
+            <input id="input" placeholder="ask anything">
+            <button id="run" onclick="Run()">Run</button>
+            <hr>
+        </div>
+        <div id="temp"></div>
+        <script>
+            try{
+            var text=""
+            var pos=0
+
+            var loading=0
+
+            function rand(min, max) {
+                return Math.floor(Math.random() * (max - min + 1) ) + min;
+            }
+
+            async function getFullArticle(title) {
+                if(title!=""){
+                    loading+=1
+                    const url = `https://en.wikipedia.org/api/rest_v1/page/html/${encodeURIComponent(title)}`;
+                    const response = await fetch(url);
+                    const text2 = await response.text();
+                    if(text2.length>250){
+                            text+=text2+" "
+                            if(text.includes("See also")){
+                                text=text.split("See also")[0]
+                            }
+                            parse()
+                    }
+                    loading-=1
+                }else{
+                    loading+=1
+                    title=""
+                    const url = `https://en.wikipedia.org/api/rest_v1/page/html/${encodeURIComponent(title)}`;
+                    const response = await fetch(url);
+                    const text2 = await response.text();
+                    if(text2.length>250){
+                            text+=text2+" "
+                            if(text.includes("See also")){
+                                text=text.split("See also")[0]
+                            }
+                            parse()
+                    }
+                    loading-=1
+                }
+            }
+
+            function Run(){
+                try{
+                    if(document.getElementById("input").value.length>0){
+                        //document.getElementById("run").disabled = true;
+                        text=""
+                        var word=document.getElementById("input").value
+                        word=[...word.toLowerCase()].filter(t => {return "abcdefghijklmnopqrstuvwxyz 1234567890".includes(t)}).join("")
+                        var words=word.split(" ")
+                        alert(JSON.stringify(words))
+                        for(var i=0;i<words.length;i++){
+                            getFullArticle(words[i])
+                        }
+                        document.getElementById("output").innerHTML+="<br><b style='float:right'>"+document.getElementById("input").value+"</b><br><br>"
+                        document.getElementById("input").value=""
+                        Generate()
+                    }
+                }catch(e){
+                    alert(e)
+                }
+            }
+            function Generate1(){
+                if(loading>0){
+                    setTimeout(Generate1,100)
+                    return
+                }
+                document.getElementById("output").innerHTML=text
+            }
+
+            function GetNext(words){
+                var indexList=[]
+                var i=0
+                while(text.indexOf(words,i)!=-1){
+                    i=text.indexOf(words,i)+1
+                    indexList.push(i-1)
+                }
+                var nextWord=""
+                if(indexList.length>0){
+                    var use=indexList[rand(0,indexList.length-1)]
+                    var nextWord=text.slice(use+words.length,text.indexOf(" ",use+words.length+1))
+                }else{
+                    nextWord="$&$<RES3T--W0RDL1ST>$&$"
+                }
+                return nextWord
+            }
+            function toString(arr){
+                var txt=""
+                for(var i=0;i<arr.length;i++){
+                    txt+=arr[i]+" "
+                }
+                return txt
+            }
+
+            function parse(){
+                document.getElementById("temp").innerHTML=text
+
+                const stylesAndScripts = document.getElementById("temp").querySelectorAll("style, script, noscript");
+                stylesAndScripts.forEach(el => el.remove());
+
+                text=document.getElementById("temp").textContent || document.getElementById("temp").innerText || "*";
+
+                text = text.replace(/\[\d+\]/g, "")   // remove citation numbers like [1], [2]
+                    .replace(/\s{2,}/g, " ")  // collapse multiple spaces
+                    .trim();
+                
+
+                if(text=="*"){
+                    alert("Error")
+                }
+                document.getElementById("temp").innerHTML=""
+            }
+
+            function Generate(){
+                try{
+                    if(loading>0){
+                        setTimeout(Generate,500)
+                        return
+                    }
+                    if(text.length>30){
+                        var wordList=[]
+
+                        var num=rand(0,text.length-5)
+                        if(text.indexOf(". ",num)!=-1){
+                            wordList.push(text.slice(text.indexOf(". ",num)+1,text.indexOf(" ",text.indexOf(". ",num)+2)))
+                        }else{
+                            wordList.push(text.slice(0,text.indexOf(" ")))
+                        }
+
+                        var words=rand(100,500)//document.getElementById("words").value
+                        var gram=1//document.getElementById("gram").value
+
+                        pos+=1
+                        document.getElementById("output").innerHTML+=wordList[0]+" "
+
+                        let Inter=setInterval(function comp(){
+                            var toAdd=""
+                            var out=GetNext(toString(wordList))
+                            if(out=="$&$<RES3T--W0RDL1ST>$&$"){
+                                wordList=[]
+                                var num=rand(0,text.length-5)
+                                if(text.indexOf(". ",num)!=-1){
+                                    wordList.push(text.slice(text.indexOf(". ",num)+1,text.indexOf(" ",text.indexOf(". ",num)+2)))
+                                }else{
+                                    wordList.push(text.slice(0,text.indexOf(" ")))
+                                }
+                            }else{
+                                wordList.push(out)
+                                if(wordList.length>gram){
+                                    wordList.shift()
+                                }
+                                toAdd+=out+" "
+                                words-=1
+                            }
+                            if(words<0){
+                                clearInterval(Inter)
+                                document.getElementById("run").disabled = false;
+                            }
+                            document.getElementById("output").innerHTML+=toAdd
+                        },0)
+                    }else{
+                        document.getElementById("run").disabled = false;
+                    }
+                }catch(e){
+                    alert(e)
+                }
+            }
+            function readText(place){
+                var msg = new SpeechSynthesisUtterance();
+                msg.text = document.getElementById(place).innerHTML;
+                window.speechSynthesis.speak(msg);
+            }
+            
+        }catch(e){
+            alert(e)
+        }
+        </script>
+    </body>
+</html>

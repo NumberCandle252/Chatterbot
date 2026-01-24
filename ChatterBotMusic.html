@@ -1,0 +1,247 @@
+<input id="input" placeholder="ask anything">
+<button id="run" onclick="Run()">Run</button>
+<div id="temp"></div>
+<br>
+<hr>
+<p id="out"></id>
+<script>
+try{
+    var text=""
+    var pos=0
+    
+    var finalList=[]
+
+    var loading=0
+
+    function rand(min, max) {
+        return Math.floor(Math.random() * (max - min + 1) ) + min;
+    }
+
+    async function getFullArticle(title) {
+        if(title!=""){
+            loading+=1
+            const url = `https://en.wikipedia.org/api/rest_v1/page/html/${encodeURIComponent(title)}`;
+            const response = await fetch(url);
+            const text2 = await response.text();
+            if(text2.length>250){
+                    text+=text2+" "
+                    if(text.includes("See also")){
+                        text=text.split("See also")[0]
+                    }
+                    parse()
+            }
+            loading-=1
+        }else{
+            loading+=1
+            title=""
+            const url = `https://en.wikipedia.org/api/rest_v1/page/html/${encodeURIComponent(title)}`;
+            const response = await fetch(url);
+            const text2 = await response.text();
+            if(text2.length>250){
+                    text+=text2+" "
+                    if(text.includes("See also")){
+                        text=text.split("See also")[0]
+                    }
+                    parse()
+            }
+            loading-=1
+        }
+    }
+
+    function Run(){
+        try{
+            if(document.getElementById("input").value.length>0){
+                text=""
+                var word=document.getElementById("input").value
+                word=[...word.toLowerCase()].filter(t => {return "abcdefghijklmnopqrstuvwxyz 1234567890".includes(t)}).join("")
+                var words=word.split(" ")
+                //alert(JSON.stringify(words))
+                for(var i=0;i<words.length;i++){
+                    getFullArticle(words[i])
+                }
+                document.getElementById("input").value=""
+                document.getElementById("out").innerHTML="loading..."
+                Generate()
+            }
+        }catch(e){
+            alert(e)
+        }
+    }
+    function Generate1(){
+        if(loading>0){
+            setTimeout(Generate1,100)
+            return
+        }
+    }
+
+    function GetNext(words){
+        var indexList=[]
+        var i=0
+        while(text.indexOf(words,i)!=-1){
+            i=text.indexOf(words,i)+1
+            indexList.push(i-1)
+        }
+        var nextWord=""
+        if(indexList.length>0){
+            var use=indexList[rand(0,indexList.length-1)]
+            var nextWord=text.slice(use+words.length,text.indexOf(" ",use+words.length+1))
+        }else{
+            nextWord="$&$<RES3T--W0RDL1ST>$&$"
+        }
+        return nextWord
+    }
+    function toString(arr){
+        var txt=""
+        for(var i=0;i<arr.length;i++){
+            txt+=arr[i]+" "
+        }
+        return txt
+    }
+
+    function parse(){
+        document.getElementById("temp").innerHTML=text
+
+        const stylesAndScripts = document.getElementById("temp").querySelectorAll("style, script, noscript");
+        stylesAndScripts.forEach(el => el.remove());
+
+        text=document.getElementById("temp").textContent || document.getElementById("temp").innerText || "*";
+
+        text = text.replace(/\[\d+\]/g, "")   // remove citation numbers like [1], [2]
+            .replace(/\s{2,}/g, " ")  // collapse multiple spaces
+            .trim();
+        
+
+        if(text=="*"){
+            alert("Error")
+        }
+        document.getElementById("temp").innerHTML=""
+    }
+
+    function Generate(){
+        try{
+            if(loading>0){
+                setTimeout(Generate,500)
+                return
+            }
+            if(text.length>30){
+                var finalText=""
+                var wordList=[]
+
+                var num=rand(0,text.length-5)
+                if(text.indexOf(". ",num)!=-1){
+                    wordList.push(text.slice(text.indexOf(". ",num)+1,text.indexOf(" ",text.indexOf(". ",num)+2)))
+                }else{
+                    wordList.push(text.slice(0,text.indexOf(" ")))
+                }
+
+                var words=rand(100,500)
+                var gram=1
+
+                pos+=1
+                finalText+=wordList[0]+" "
+
+                let Inter=setInterval(function comp(){
+                    var toAdd=""
+                    var out=GetNext(toString(wordList))
+                    if(out=="$&$<RES3T--W0RDL1ST>$&$"){
+                        wordList=[]
+                        var num=rand(0,text.length-5)
+                        if(text.indexOf(". ",num)!=-1){
+                            wordList.push(text.slice(text.indexOf(". ",num)+1,text.indexOf(" ",text.indexOf(". ",num)+2)))
+                        }else{
+                            wordList.push(text.slice(0,text.indexOf(" ")))
+                        }
+                    }else{
+                        wordList.push(out)
+                        if(wordList.length>gram){
+                            wordList.shift()
+                        }
+                        toAdd+=out+" "
+                        words-=1
+                    }
+                    finalText+=toAdd
+                    if(rand(0,50)==0){
+                        finalText+=". "
+                    }
+                    if(words<0){
+                        finalList=finalText.split(".")
+                        readText(finalList.shift())
+
+                        clearInterval(Inter)
+                    }
+                },0)
+            }
+        }catch(e){
+            alert(e)
+        }
+    }
+            
+            
+    // create web audio api context
+    const audioCtx = new AudioContext();
+    let notes=[]
+    let noteTime=[]
+
+let gainNode = new GainNode(audioCtx, {
+    gain: 0.1, // Default is 1; 0.5 is half volume, 0 is silent
+});
+    
+    function makeSound(freq,type,time){
+        // create Oscillator node
+        let oscillator = audioCtx.createOscillator();
+        
+        oscillator.type = ["sine","square","triangle","sawtooth"][type];
+        oscillator.frequency.setValueAtTime(freq, audioCtx.currentTime); // value in hertz
+        oscillator.connect(gainNode).connect(audioCtx.destination);
+        oscillator.start();
+        notes.push(oscillator)
+        noteTime.push(time)
+    }
+function isSpeechQueueEmpty() {
+  return !window.speechSynthesis.pending && !window.speechSynthesis.speaking;
+}
+    
+    function readText(text){
+document.getElementById("out").innerHTML=text
+        var msg = new SpeechSynthesisUtterance();
+        msg.text = text
+        msg.pitch=1.6+rand(-10,10)/100//rand(1,180)/100
+        msg.rate=2+rand(-10,10)/50//rand(1,40)/10
+        window.speechSynthesis.speak(msg);
+    }
+    readText("Started")
+    
+    function Run1(){
+try{
+        for(var i=0;i<notes.length;i++){
+            noteTime[i]-=1
+            if(noteTime[i]<0){
+                notes[i].stop()
+                notes.splice(i,1)
+                noteTime.splice(i,1)
+                i-=1
+            }
+        }
+        if(finalList.length>0){
+if(isSpeechQueueEmpty()){
+readText(finalList.shift())
+}
+if(rand(0,5+notes.length*5)==0){
+            makeSound(rand(100,800),rand(0,3),rand(10,500))
+}
+        }else{
+            for(var i=0;i<notes.length;i++){
+                notes[i].stop()
+            }
+            notes=[]
+            noteTime=[]
+        }
+}catch(e){
+alert(e)
+}
+    }
+    setInterval(Run1,10)
+}catch(e){
+alert(e)
+}
+</script>

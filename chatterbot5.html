@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>
+            ChatterBot 5
+        </title>
+    </head>
+    <body>
+        <h1>ChatterBot 5</h1>
+        <hr>
+        <marquee id="scroll">Better than ChatterBot 4</marquee>
+        <hr>
+        <input type="text" id="start" placeholder="starting word" title="The First Word Of Generation">
+        <input type="number" id="gram" value="2" min="1" max="5" title="How Accurate ChatterBot Is With Word Patterns">
+        <input type="number" id="words" value="500" min="10" max="5000" title="How Many Words To Generate">
+        <input type="number" id="speed" value="5" min="1" max="100" title="Generation Speed (Faster Is More Laggy)">
+        <button onclick="Generate()" id="runButton" title="Generate Result">Run</button>
+        <button onclick="if(text.length<50){alert('Enter More Text Before Running')}else{var num=parseInt(prompt('Enter Thread Count',3));if(confirm('Run '+num+' Threads At Speed '+document.getElementById('speed').value)){for(var i=0;i<num;i++){Generate()}}}" id="runButton2" title="Generate Multiple Results (Warning: Very Laggy)">Multi-thread</button>
+        <button style="float: right;" id="sources" onclick="alert(sourceList)" title="Click To View Sources">0 sources added | 0 words</button>
+        <input style="float: right;" type="file" name="inputfile" id="inputfile" multiple="true" title="Import Files, All Files Are Read As Text">
+        <button style="float: right;" onclick="pasteText()" title="Copy And Paste Text Directly">Paste Text</button>
+        <button style="float: right;" id="wikiAdd" onclick="getArticle()" title="Load Text From The Summary Of A Wikipedia Article">Wikipedia Summary</button>
+        <div id="main"></div>
+        <script>
+            try{
+            var text=""
+            var pos=0
+
+            var sourceNum=0
+            var sourceList=""
+
+            document.getElementById('inputfile')
+            .addEventListener('change', function () {
+                readmultifiles(this.files)
+            })
+            function readmultifiles(files) {
+                var reader = new FileReader();
+                function readFile(index) {
+                    if( index >= files.length ){
+                        document.getElementById("sources").innerHTML=sourceNum+" sources added | "+text.split(" ").length+" words"
+                        return;
+                    }
+                    var file = files[index];
+                    reader.onload = function(e) {
+                        text+=e.target.result+" ";
+                        sourceNum+=1
+                        readFile(index+1)
+                    }
+                    sourceList+="file:"+file.name+"\n"
+                    reader.readAsText(file);
+                }
+                readFile(0);
+            }
+            function getArticle(){
+                var title=prompt("Enter Keyword")
+                if(title!=""&&title+""!="null"){
+                    fetch(`https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(title)}`)
+                    .then(r => r.json())
+                    .then(data => {
+                        text+=data.extract+' ';
+                        sourceNum+=1
+                        sourceList+="wiki:"+data.title+"\n"
+                        document.getElementById("sources").innerHTML=sourceNum+" sources added | "+text.split(" ").length+" words"
+                    })
+                    .catch(err => alert(err))
+                }
+            }
+            function pasteText(){
+                text+=prompt('Add Text')
+                var title=prompt('Add Title')
+                if(title!=""&&title+""!="null"){
+                    sourceNum+=1
+                    sourceList+="custom:"+title+"\n"
+                    document.getElementById("sources").innerHTML=sourceNum+" sources added | "+text.split(" ").length+" words"
+                }
+            }
+
+            function rand(min, max) {
+                return Math.floor(Math.random() * (max - min + 1) ) + min;
+            }
+
+            function GetNext(words){
+                var indexList=[]
+                var i=0
+                while(text.indexOf(words,i)!=-1){
+                    i=text.indexOf(words,i)+1
+                    indexList.push(i-1)
+                }
+                var nextWord=""
+                if(indexList.length>0){
+                    var use=indexList[rand(0,indexList.length-1)]
+                    var nextWord=text.slice(use+words.length,text.indexOf(" ",use+words.length+1))
+                }else{
+                    nextWord="$&$<RES3T--W0RDL1ST>$&$"
+                }
+                return nextWord
+            }
+            function toString(arr){
+                var txt=""
+                for(var i=0;i<arr.length;i++){
+                    txt+=arr[i]+" "
+                }
+                return txt
+            }
+
+            function Generate(){
+                try{
+                    if(text.length>30){
+                        document.getElementById("runButton").disabled = true;
+                        document.getElementById("runButton2").disabled = true;
+                        var htmPos=pos
+                        var wordList=[]
+                        if(document.getElementById("start").value==""||text.indexOf(document.getElementById("start").value)==-1){
+                            var num=rand(0,text.length-5)
+                            if(text.indexOf(". ",num)!=-1){
+                                wordList.push(text.slice(text.indexOf(". ",num)+1,text.indexOf(" ",text.indexOf(". ",num)+2)))
+                            }else{
+                                wordList.push(text.slice(0,text.indexOf(" ")))
+                            }
+                        }else{
+                            wordList.push(document.getElementById("start").value)
+                        }
+                        var words=document.getElementById("words").value
+                        var gram=document.getElementById("gram").value
+                        var speed=document.getElementById("speed").value
+                        if(speed<1){
+                            speed=1
+                        }
+
+                        pos+=1
+                        document.getElementById("main").innerHTML+="<p id='"+htmPos+"'>"+wordList[0]+" </p>"
+
+                        let Inter=setInterval(function comp(){
+                            var toAdd=""
+                            for(var a=0;a<speed;a++){
+                                var out=GetNext(toString(wordList))
+                                if(out=="$&$<RES3T--W0RDL1ST>$&$"){
+                                    wordList=[]
+                                    var num=rand(0,text.length-5)
+                                    if(text.indexOf(". ",num)!=-1){
+                                        wordList.push(text.slice(text.indexOf(". ",num)+1,text.indexOf(" ",text.indexOf(". ",num)+2)))
+                                    }else{
+                                        wordList.push(text.slice(0,text.indexOf(" ")))
+                                    }
+                                }else{
+                                    wordList.push(out)
+                                    if(wordList.length>gram){
+                                        wordList.shift()
+                                    }
+                                    toAdd+=out+" "
+                                    words-=1
+                                }
+                                if(words<0){
+                                    clearInterval(Inter)
+                                    document.getElementById(htmPos).innerHTML+=toAdd+" "
+                                    toAdd="<br><br>"
+                                    document.getElementById(htmPos).innerHTML+="<br><button onclick='readText("+htmPos+")'>Read</button>"
+                                    document.getElementById(htmPos).innerHTML+="<button onclick='document.getElementById("+htmPos+").remove();'>Remove</button>"
+                                    //document.getElementById(htmPos).innerHTML+="<button onclick=\"alert('"+sourceList+"')\">View Sources</button>"
+                                    //alert(document.getElementById(htmPos).innerHTML)
+                                    document.getElementById("runButton").disabled = false;
+                                    document.getElementById("runButton2").disabled = false;
+                                    break
+                                }
+                            }
+                            document.getElementById(htmPos).innerHTML+=toAdd
+                        },50)
+                    }else{
+                        alert("Please Enter More Text Before Running")
+                    }
+                }catch(e){
+                    alert(e)
+                }
+            }
+            function readText(place){
+                var msg = new SpeechSynthesisUtterance();
+                msg.text = document.getElementById(place).innerHTML;
+                window.speechSynthesis.speak(msg);
+            }
+            
+        }catch(e){
+            alert(e)
+        }
+        </script>
+    </body>
+</html>
