@@ -1,6 +1,6 @@
 <html>
     <head>
-        <title>Yes</title>
+        <title>ChatterShorts</title>
     </head>
     <body>
         <canvas id="Canvas" width="300" height="500"></canvas><br>
@@ -94,13 +94,14 @@
                 var pixels=[]
                 for(var i=0;i<titles.length;i++){
                     var imageUrl = await getWikipediaImage(titles[i]);
-                    if (!imageUrl) {
-                        console.log("No image found");
-                        return;
+                    if (imageUrl) {
+                        var img = await loadImage(imageUrl);
+                        pixels.push(imageToPixelArray(img, Canvas.width, Canvas.height));
                     }
-
-                    var img = await loadImage(imageUrl);
-                    pixels.push(imageToPixelArray(img, Canvas.width, Canvas.height));
+                }
+                if(pixels.length==0){
+                    RunRandom()
+                    return
                 }
                 for(var x=0;x<Canvas.width;x++){
                     for(var y=0;y<Canvas.height;y++){
