@@ -1,0 +1,496 @@
+<html>
+    <head>
+        <title>Yes</title>
+    </head>
+    <body>
+        <canvas id="Canvas" width="300" height="500"></canvas><br>
+        <button onclick="RunRandom()">Scroll</button> | 
+        <button onclick="favorLike()">Like</button>
+        <button onclick="favorDislike()">Dislike</button>
+        <p id="state"></p>
+        <p id="temp" style="display:none"></p>
+        <script>
+        try{
+            var ctx=document.getElementById("Canvas").getContext("2d");
+
+            function rand(min, max) {
+                return Math.floor(Math.random() * (max - min + 1) ) + min;
+            }
+
+            function wrapText(text, x, y, maxWidth, lineHeight) {
+                const words = text.split(' ');
+                let line = '';
+                for (let n = 0; n < words.length; n++) {
+                    const testLine = line + words[n] + ' ';
+                    const metrics = ctx.measureText(testLine);
+                    const testWidth = metrics.width;
+                    if (testWidth > maxWidth && n > 0) {
+                    ctx.fillText(line, x, y);
+                    line = words[n] + ' ';
+                    y += lineHeight;
+                    } else {
+                        if(words[n]=="\n"){
+                            ctx.fillText(line, x, y);
+                            line = ' ';
+                            y += lineHeight;
+                        }else{
+                            line = testLine;
+                        }
+                    }
+                }
+                ctx.fillText(line, x, y);
+            }
+
+            /*async function getWikipediaImage(title) {
+                const url =
+                    "https://en.wikipedia.org/w/api.php" +
+                    "?action=query" +
+                    "&format=json" +
+                    "&prop=pageimages" +
+                    "&piprop=thumbnail" +
+                    "&pithumbsize=512" +
+                    "&origin=*" +
+                    "&titles=" + encodeURIComponent(title);
+
+                const response = await fetch(url);
+                const data = await response.json();
+
+                const pages = data.query.pages;
+                const page = Object.values(pages)[0];
+
+                return page.thumbnail?.source;
+            }*/
+            async function getWikipediaImage(title) {
+                // Step 1: get list of images used in the article
+                const listUrl =
+                    "https://en.wikipedia.org/w/api.php" +
+                    "?action=query" +
+                    "&format=json" +
+                    "&prop=images" +
+                    "&origin=*" +
+                    "&titles=" + encodeURIComponent(title);
+
+                const listResponse = await fetch(listUrl);
+                const listData = await listResponse.json();
+
+                const pages = listData.query.pages;
+                const page = Object.values(pages)[0];
+                if (!page.images) return null;
+
+                // Step 2: clean the list
+                const imageTitles = page.images
+                    .map(img => img.title)
+                    .filter(name =>
+                    /\.(jpg|jpeg|png)$/i.test(name) &&       // real images
+                    !/icon|logo|symbol|flag|map/i.test(name) // avoid UI clutter
+                    );
+
+                if (imageTitles.length === 0) return null;
+
+                // Pick a random image
+                const randomTitle =
+                    imageTitles[Math.floor(Math.random() * imageTitles.length)];
+
+                // Step 3: get image URL
+                const infoUrl =
+                    "https://en.wikipedia.org/w/api.php" +
+                    "?action=query" +
+                    "&format=json" +
+                    "&prop=imageinfo" +
+                    "&iiprop=url" +
+                    "&origin=*" +
+                    "&titles=" + encodeURIComponent(randomTitle);
+
+                const infoResponse = await fetch(infoUrl);
+                const infoData = await infoResponse.json();
+
+                const imagePage = Object.values(infoData.query.pages)[0];
+                return imagePage.imageinfo?.[0]?.url || null;
+            }
+
+            function loadImage(url) {
+                return new Promise((resolve, reject) => {
+                    const img = new Image();
+                    img.crossOrigin = "anonymous";
+                    img.onload = () => resolve(img);
+                    img.onerror = reject;
+                    img.src = url;
+                });
+            }
+            function imageToPixelArray(img, width, height) {
+                const canvas = document.createElement("canvas");
+                canvas.width = width;
+                canvas.height = height;
+
+                const ctx = canvas.getContext("2d");
+                ctx.drawImage(img, 0, 0, width, height);
+
+                const data = ctx.getImageData(0, 0, width, height).data;
+
+                const pixels = [];
+                for (let y = 0; y < height; y++) {
+                    const row = [];
+                    for (let x = 0; x < width; x++) {
+                        const i = (y * width + x) * 4;
+                        row.push([data[i],data[i+1],data[i+2]]);
+                    }
+                    pixels.push(row);
+                }
+                return pixels;
+            }
+            async function run(titles) {
+                try{
+                document.getElementById("state").innerHTML="loading..."
+                var pixels=[]
+                for(var i=0;i<titles.length;i++){
+                    var imageUrl = await getWikipediaImage(titles[i]);
+                    if (imageUrl) {
+                        var img = await loadImage(imageUrl);
+                        pixels.push(imageToPixelArray(img, Canvas.width, Canvas.height));
+                    }
+                }
+                if(pixels.length==0){
+                    RunRandom()
+                    return
+                }
+                for(var x=0;x<Canvas.width;x++){
+                    for(var y=0;y<Canvas.height;y++){
+                        var rgb=[0,0,0]
+                        for(var i=0;i<pixels.length;i++){
+                            rgb[0]+=pixels[i][y][x][0]
+                            rgb[1]+=pixels[i][y][x][1]
+                            rgb[2]+=pixels[i][y][x][2]
+                        }
+                        rgb[0]/=pixels.length
+                        rgb[1]/=pixels.length
+                        rgb[2]/=pixels.length
+                        ctx.fillStyle="rgb("+rgb[0]+","+rgb[1]+","+rgb[2]+")"
+                        //ctx.fillStyle="rgb("+pixels[rand(0,pixels.length-1)][y][x][0]+","+pixels[rand(0,pixels.length-1)][y][x][1]+","+pixels[rand(0,pixels.length-1)][y][x][2]+")"
+                        ctx.fillRect(x,y,1,1)
+                    }
+                }
+                
+                ctx.textAlign="center"
+                ctx.font=rand(15,30)+"px "+["Arial","Verdana","Tahoma","Trebuchet MS","Times New Roman","Georgia","Garamond","Courier New","Brush Script MT"][rand(0,8)]
+                var text=""
+                var j=rand(5,30)
+                for(var i=0;i<j;i++){
+                    text+=titles[rand(0,titles.length-1)]+" "
+                }
+                ctx.fillStyle="rgb("+rand(0,255)+","+rand(0,255)+","+rand(0,255)+")"
+                wrapText(text,150,100,300,25)
+
+                window.speechSynthesis.cancel()
+                finalList=[];
+
+                Run(titles.join(" "))
+                document.getElementById("state").innerHTML=""
+                }catch(e){
+                    alert(e)
+                }
+            }
+
+
+            var text=""
+    var pos=0
+    
+    var finalList=[]
+    var pitch1=0
+
+    var loading=0
+
+    async function getFullArticle(title) {
+        if(title!=""){
+            loading+=1
+            const url = `https://en.wikipedia.org/api/rest_v1/page/html/${encodeURIComponent(title)}`;
+            const response = await fetch(url);
+            const text2 = await response.text();
+            if(text2.length>250){
+                    text+=text2+" "
+                    if(text.includes("See also")){
+                        text=text.split("See also")[0]
+                    }
+                    parse()
+            }
+            loading-=1
+        }else{
+            loading+=1
+            title=""
+            const url = `https://en.wikipedia.org/api/rest_v1/page/html/${encodeURIComponent(title)}`;
+            const response = await fetch(url);
+            const text2 = await response.text();
+            if(text2.length>250){
+                    text+=text2+" "
+                    if(text.includes("See also")){
+                        text=text.split("See also")[0]
+                    }
+                    parse()
+            }
+            loading-=1
+        }
+    }
+
+    function Run(input){
+        try{
+            if(input.length>0){
+                text=""
+                var word=input
+                word=[...word.toLowerCase()].filter(t => {return "abcdefghijklmnopqrstuvwxyz 1234567890".includes(t)}).join("")
+                var words=word.split(" ")
+                //alert(JSON.stringify(words))
+                for(var i=0;i<words.length;i++){
+                    getFullArticle(words[i])
+                }
+                Generate()
+            }
+        }catch(e){
+            alert(e)
+        }
+    }
+    function Generate1(){
+        if(loading>0){
+            setTimeout(Generate1,100)
+            return
+        }
+    }
+
+    function GetNext(words){
+        var indexList=[]
+        var i=0
+        while(text.indexOf(words,i)!=-1){
+            i=text.indexOf(words,i)+1
+            indexList.push(i-1)
+        }
+        var nextWord=""
+        if(indexList.length>0){
+            var use=indexList[rand(0,indexList.length-1)]
+            var nextWord=text.slice(use+words.length,text.indexOf(" ",use+words.length+1))
+        }else{
+            nextWord="$&$<RES3T--W0RDL1ST>$&$"
+        }
+        return nextWord
+    }
+    function toString(arr){
+        var txt=""
+        for(var i=0;i<arr.length;i++){
+            txt+=arr[i]+" "
+        }
+        return txt
+    }
+
+    function parse(){
+        document.getElementById("temp").innerHTML=text
+
+        const stylesAndScripts = document.getElementById("temp").querySelectorAll("style, script, noscript");
+        stylesAndScripts.forEach(el => el.remove());
+
+        text=document.getElementById("temp").textContent || document.getElementById("temp").innerText || "*";
+
+        text = text.replace(/\[\d+\]/g, "")   // remove citation numbers like [1], [2]
+            .replace(/\s{2,}/g, " ")  // collapse multiple spaces
+            .trim();
+        
+
+        if(text=="*"){
+            alert("Error")
+        }
+        document.getElementById("temp").innerHTML=""
+    }
+
+    function Generate(){
+        try{
+            if(loading>0){
+                setTimeout(Generate,500)
+                return
+            }
+            if(text.length>30){
+                var finalText=""
+                var wordList=[]
+
+                var num=rand(0,text.length-5)
+                if(text.indexOf(". ",num)!=-1){
+                    wordList.push(text.slice(text.indexOf(". ",num)+1,text.indexOf(" ",text.indexOf(". ",num)+2)))
+                }else{
+                    wordList.push(text.slice(0,text.indexOf(" ")))
+                }
+
+                var words=rand(100,300)
+                var gram=1
+
+                pos+=1
+                finalText+=wordList[0]+" "
+
+                let Inter=setInterval(function comp(){
+                    var toAdd=""
+                    var out=GetNext(toString(wordList))
+                    if(out=="$&$<RES3T--W0RDL1ST>$&$"){
+                        wordList=[]
+                        var num=rand(0,text.length-5)
+                        if(text.indexOf(". ",num)!=-1){
+                            wordList.push(text.slice(text.indexOf(". ",num)+1,text.indexOf(" ",text.indexOf(". ",num)+2)))
+                        }else{
+                            wordList.push(text.slice(0,text.indexOf(" ")))
+                        }
+                    }else{
+                        wordList.push(out)
+                        if(wordList.length>gram){
+                            wordList.shift()
+                        }
+                        toAdd+=out+" "
+                        words-=1
+                    }
+                    finalText+=toAdd
+                    if(rand(0,10)==0){
+                        finalText+=". "
+                    }
+                    if(words<0){
+                        finalList=finalText.split(".")
+                        readText(finalList.shift())
+                        pitch1=rand(20,180)/100
+                        clearInterval(Inter)
+                    }
+                },0)
+            }
+        }catch(e){
+            alert(e)
+        }
+    }
+            
+            
+    // create web audio api context
+    const audioCtx = new AudioContext();
+    let notes=[]
+    let noteTime=[]
+
+let gainNode = new GainNode(audioCtx, {
+    gain: 0.03, // Default is 1; 0.5 is half volume, 0 is silent
+});
+    
+    function makeSound(freq,type,time){
+        // create Oscillator node
+        let oscillator = audioCtx.createOscillator();
+        
+        oscillator.type = ["sine","square","triangle","sawtooth"][type];
+        oscillator.frequency.setValueAtTime(freq, audioCtx.currentTime); // value in hertz
+        oscillator.connect(gainNode).connect(audioCtx.destination);
+        oscillator.start();
+        notes.push(oscillator)
+        noteTime.push(time)
+    }
+function isSpeechQueueEmpty() {
+  return !window.speechSynthesis.pending && !window.speechSynthesis.speaking;
+}
+    
+    function readText(text){
+        var msg = new SpeechSynthesisUtterance();
+        msg.text = text
+        msg.pitch=pitch1+rand(-10,10)/100//rand(1,180)/100
+        msg.rate=2+rand(-10,10)/50//rand(1,40)/10
+        window.speechSynthesis.speak(msg);
+    }
+    readText("Started")
+    
+    function Run1(){
+try{
+        for(var i=0;i<notes.length;i++){
+            noteTime[i]-=1
+            if(noteTime[i]<0){
+                notes[i].stop()
+                notes.splice(i,1)
+                noteTime.splice(i,1)
+                i-=1
+            }
+        }
+        if(finalList.length>0){
+            if(isSpeechQueueEmpty()){
+                readText(finalList.shift())
+            }
+            if(rand(0,5+notes.length*5)==0){
+                makeSound(rand(100,800),rand(0,3),rand(10,500))
+            }
+        }else{
+            for(var i=0;i<notes.length;i++){
+                notes[i].stop()
+            }
+            notes=[]
+            noteTime=[]
+        }
+}catch(e){
+alert(e)
+}
+    }
+    setInterval(Run1,10)
+
+            //run(["hello","world"]);
+
+            function favorLike(){
+                favor.push(...currentTitles)
+            }
+            function favorDislike(){
+                for(var i=0;i<currentTitles.length;i++){
+                    if(favor.includes(currentTitles[i])){
+                        favor.splice(favor.indexOf(currentTitles[i]),1)
+                    }
+                }
+            }
+            var currentTitles=[]
+            var favor=[]
+
+            function RunRandom(){
+                var titles=[]
+                var words=["hello","world","ai","shorts","Physics","Chemistry","Biology","Mathematics","Astronomy","Geology","Ecology","Genetics","Evolution","Anatomy",
+"Philosophy","Psychology","Sociology","Anthropology","Economics","Linguistics","Ethics","Logic","Metaphysics","Epistemology",
+"Democracy","Republic","Monarchy","Constitution","Parliament","Federalism","Capitalism","Socialism","Communism","Imperialism",
+"Internet","Computer","Algorithm","Database","Encryption","Blockchain","Artificial intelligence","Machine learning","Neural network","Operating system",
+"Earth","Mars","Venus","Jupiter","Saturn","Uranus","Neptune","Moon","Sun","Asteroid",
+"Galaxy","Nebula","Black hole","Supernova","Quasar","Cosmology","Big Bang","Relativity","Gravity","Light",
+"Ocean","Atmosphere","Climate","Weather","Hurricane","Tornado","Earthquake","Volcano","Tsunami","Glacier",
+"Forest","Desert","Savanna","Tundra","Rainforest","Wetland","River","Lake","Mountain","Island",
+"Tree","Flower","Mammal","Bird","Reptile","Amphibian","Insect","Fish","Fungus","Bacterium",
+"Human","Brain","Heart","Lung","Liver","Kidney","Skeleton","Muscle","Neuron","Hormone",
+"Medicine","Surgery","Anesthesia","Vaccination","Antibiotic","Virus","Pandemic","Immunity","Cancer","Diabetes",
+"Music","Art","Painting","Sculpture","Architecture","Photography","Cinema","Theatre","Literature","Poetry",
+"Novel","Drama","Mythology","Folklore","Fairy tale","Epic","Tragedy","Comedy","Satire","Allegory",
+"History","Archaeology","Chronology","Civilization","Empire","Revolution","Renaissance","Enlightenment","Industrial Revolution","Cold War",
+"Egypt","Greece","Rome","China","India","Japan","France","Germany","Italy","Spain",
+"London","Paris","Berlin","Rome","Athens","Cairo","Beijing","Tokyo","Delhi","New York City",
+"United States","Canada","Mexico","Brazil","Argentina","Chile","Russia","Ukraine","Poland","Sweden",
+"Africa","Europe","Asia","Antarctica","Australia","Oceania","Arctic","Equator","Hemisphere","Latitude",
+"Longitude","Map","Cartography","Compass","Navigation","Exploration","Voyage","Expedition","Discovery","Colonization",
+"Engineering","Mechanics","Thermodynamics","Electromagnetism","Optics","Acoustics","Nanotechnology","Robotics","Aerospace","Nuclear power",
+"Energy","Electricity","Magnetism","Battery","Generator","Engine","Turbine","Reactor","Solar power","Wind power",
+"Transportation","Automobile","Bicycle","Railway","Airplane","Helicopter","Rocket","Spacecraft","Satellite","Submarine",
+"Economy","Trade","Currency","Inflation","Bank","Credit","Debt","Investment","Stock market","Cryptocurrency",
+"Law","Justice","Court","Judge","Trial","Evidence","Contract",
+"Language","Alphabet","Grammar","Syntax","Phonetics","Semantics","Translation","Writing","Manuscript","Printing",
+"Book","Library","Archive","Museum","University","School","Education","Curriculum","Examination","Diploma",
+"Sports","Football","Basketball","Baseball","Tennis","Cricket","Hockey","Rugby","Olympics","Marathon",
+"Game","Chess","Go","Poker","Video game","Esports","Simulation","Strategy","Competition","Tournament",
+"Food","Agriculture","Farming","Irrigation","Crop","Grain","Rice","Wheat","Maize","Potato",
+"Fruit","Vegetable","Apple","Banana","Orange","Grape","Tomato","Carrot","Onion","Garlic",
+"Animal","Dog","Cat","Horse","Cow","Sheep","Goat","Pig","Elephant","Whale",
+"Environment","Conservation","Sustainability","Pollution","Recycling","Deforestation","Biodiversity","Extinction","Habitat","Ecosystem",
+"Time","Calendar","Clock","Chronicle","Century","Millennium","Leap year","Time zone","History of timekeeping","Atomic clock",
+"Measurement","Meter","Kilogram","Second","Temperature","Pressure","Volume","Density","Velocity","Acceleration",
+"Color","Light","Spectrum","Wavelength","Frequency","Photon","Laser","Rainbow","Optical fiber","Reflection",
+"Emotion","Happiness","Sadness","Anger","Fear","Surprise","Disgust","Love","Empathy","Motivation",
+"Culture","Tradition","Custom","Festival","Ceremony","Symbol","Icon","Flag","Anthem","Heritage",
+"Urbanization","City","Town","Village","Metropolis","Infrastructure","Housing","Skyscraper","Suburb","Transportation planning"]
+
+                words.push(...favor)
+
+                var j=rand(3,8)
+                for(var i=0;i<j;i++){
+                    titles.push(words[rand(0,words.length-1)])
+                }
+                currentTitles=titles
+                //alert(titles)
+                run(titles)
+            }
+            RunRandom()
+        }catch(e){
+            alert(e)
+        }
+        </script>
+    </body>
+</html>
