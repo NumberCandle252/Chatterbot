@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>ChatterShorts 3</title>
+        <style>
+            /*html, body {
+                margin: 0;
+                padding: 0;
+                height: 100%;
+            }
+
+            body {
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                background: #111;
+            }*/
+
+            /* This controls the responsive sizing */
+            #canvas-container {
+                position: relative;
+                width: min(90vw, 300px); /* scales down nicely on mobile */
+                aspect-ratio: 3 / 5;     /* keeps 300x500 proportions */
+            }
+
+            /* All canvases fill the container */
+            #canvas-container canvas {
+                position: absolute;
+                inset: 0;
+                width: 100%;
+                height: 100%;
+            }
+            #game-wrapper {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                gap: 12px;
+            }
+
+
+            .bottom-controls button {
+                /*padding: 12px 18px;*/
+                font-size: 16px;
+            }
+
+
+            /* Stack order */
+            #bg   { z-index: 0; }
+            #main { z-index: 1; }
+            #fg   { z-index: 2; }
+
+        </style>
+    </head>
+    <body>
+        <script src="https://cdn.jsdelivr.net/npm/three@0.157.0/build/three.min.js"></script>
+
+        <div id="game-wrapper">
+            <div id="canvas-container">
+                <canvas id="bg"></canvas>
+                <canvas id="main" style="background-color: black;"></canvas>
+                <canvas id="fg"></canvas>
+            </div>
+
+            <div class="controls bottom-controls">
+                <button>Left</button>
+                <button>Jump</button>
+                <button>Right</button><br>
+                <button>Left</button>
+                <button>Jump</button>
+                <button>Right</button>
+            </div>
+        </div>
+
+
+        <script>
+            function rand(min, max) {
+                return Math.floor(Math.random() * (max - min + 1) ) + min;
+            }
+            function dist(x1,y1,x2,y2){
+                return parseFloat(Math.sqrt(((x1-x2)**2)+((y1-y2)**2)))
+            }
+
+            function line(x1,y1,x2,y2,width,color){
+                ctx.strokeStyle = color;
+                ctx.lineWidth = width;
+                ctx.beginPath();
+                ctx.moveTo(x1,y1);
+                ctx.lineTo(x2,y2);
+                ctx.stroke();
+            }
+            function circle(x,y,r,c,stroke=false,arc=2){
+                ctx.fillStyle =c;
+                ctx.strokeStyle=c;
+                ctx.beginPath();
+                ctx.arc(x,y, r, 0, arc * Math.PI);
+                if(stroke){
+                    ctx.stroke()
+                }else{
+                    ctx.fill();
+                }
+            }
+            function wrapText(text, x, y, maxWidth, lineHeight) {
+                const words = text.split(' ');
+                let line = '';
+                for (let n = 0; n < words.length; n++) {
+                    const testLine = line + words[n] + ' ';
+                    const metrics = ctx.measureText(testLine);
+                    const testWidth = metrics.width;
+                    if (testWidth > maxWidth && n > 0) {
+                    ctx.fillText(line, x, y);
+                    line = words[n] + ' ';
+                    y += lineHeight;
+                    } else {
+                        if(words[n]=="\n"){
+                            ctx.fillText(line, x, y);
+                            line = ' ';
+                            y += lineHeight;
+                        }else{
+                            line = testLine;
+                        }
+                    }
+                }
+                ctx.fillText(line, x, y);
+            }
+
+            function disposeObject(obj) {
+                // Remove from parent
+                if (obj.parent) obj.parent.remove(obj);
+
+                // Dispose geometry
+                if (obj.geometry) {
+                    obj.geometry.dispose();
+                }
+
+                // Dispose materials
+                if (obj.material) {
+                    // Some objects use an array of materials
+                    if (Array.isArray(obj.material)) {
+                        obj.material.forEach((m) => m.dispose());
+                    } else {
+                        obj.material.dispose();
+                    }
+                }
+
+                // Optionally dispose textures if you're managing them manually
+                // obj.material.map?.dispose();
+
+                // Also dispose children recursively if it's a group
+                obj.traverse((child) => {
+                    if (child.geometry) child.geometry.dispose();
+                    if (child.material) {
+                        if (Array.isArray(child.material)) {
+                            child.material.forEach((m) => m.dispose());
+                        } else {
+                            child.material.dispose();
+                        }
+                    }
+                });
+            }
+
+            /*const container = document.getElementById("canvas-container");
+            const canvases = container.querySelectorAll("canvas");
+            function resizeCanvases() {
+                const rect = container.getBoundingClientRect();
+                const dpr = window.devicePixelRatio || 1;
+
+                canvases.forEach(canvas => {
+                    canvas.width  = rect.width * dpr;
+                    canvas.height = rect.height * dpr;
+
+                    const ctx = canvas.getContext("2d");
+                    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+                });
+            }
+            //window.addEventListener("resize", resizeCanvases);
+            //resizeCanvases();*/
+
+            //THREE JS setup
+            let scene = new THREE.Scene();
+            let camera = new THREE.PerspectiveCamera(75, THREEcanvas.clientWidth / THREEcanvas.clientHeight, 0.1, 100);
+            let renderer = new THREE.WebGLRenderer({canvas:document.getElementById("THREEcanvas")});
+            renderer.setSize(THREEcanvas.clientWidth,THREEcanvas.clientHeight)
+            renderer.setClearColor('grey');
+            camera.position.set(0,0,0)
+
+            //Main Canvas setup
+            var ctx=document.getElementById("Canvas").getContext("2d")
+        </script>
+    </body>
+</html>
