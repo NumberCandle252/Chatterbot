@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>ChatterCode: Make A Website For Free</title>
+    </head>
+    <body>
+        <h1>ChatterCode: Make A Website For Free</h1>
+        <iframe id="frame" style="width:90vw;height:80vh" srcdoc="<body style='background-color:grey;'></body>"></iframe>
+        <input id="input"><button onclick="Start()">Run</button>
+        <script>
+            function rand(min, max) {
+                return Math.floor(Math.random() * (max - min + 1) ) + min;
+            }
+
+            var associationsValue=[]
+            var associations=[]
+            var words=[]
+
+            var usedArticles=["the","who","is","a","what","your","you","they","are","chatterbot","my","to","that","with","it","in"]
+            var articleQ=[]
+            var tokens=[]
+            var loading=0
+
+            function runArticle(){
+                if(articleQ.length>0){
+                    loading+=1
+                    getArticle(articleQ.shift())
+                }
+            }
+            let artInter=setInterval(runArticle,10)
+            function getArticle(title){
+                if(title!=""&&title+""!="null"&&!usedArticles.includes(title)){
+                    fetch(`https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(title)}`)
+                    .then(r => r.json())
+                    .then(data => {
+                        usedArticles.push(title)
+                        process(data.extract)
+                        loading-=1
+                    })
+                    .catch(err => alert(err))
+                }else{
+                    loading-=1
+                }
+            }
+
+            function inputSentence(sentence){
+                var words1=sentence.split(" ")
+                for(var i=0;i<words1.length;i++){
+                    if(words1[i]&&words1[i].length>0){
+                        if(!words.includes(words1[i])){
+                            words.push(words1[i])
+                            associations.push([])
+                            associationsValue.push([])
+                        }
+                    }else{
+                        words1.splice(i,1)
+                        i-=1
+                    }
+                }
+                for(var i=0;i<words1.length;i++){
+                    for(var j=0;j<words1.length;j++){
+                        if(i!=j){
+                            if(associations[words.indexOf(words1[i])].includes(words1[j])){
+                                associationsValue[words.indexOf(words1[i])][associations[words.indexOf(words1[i])].indexOf(words1[j])]+=1
+                            }else{
+                                associations[words.indexOf(words1[i])].push(words1[j])
+                                associationsValue[words.indexOf(words1[i])].push(1)
+                            }
+                        }
+                    }
+                }
+            }
+            function getAssociated(word){
+                var list=[]
+                if(!words.includes(word)){
+                    return [words[rand(0,words.length-1)]]
+                }
+                var total=0
+                for(var i=0;i<associations[words.indexOf(word)].length;i++){
+                    total+=associationsValue[words.indexOf(word)][i]
+                }
+                for(var i=0;i<associations[words.indexOf(word)].length;i++){
+                    if(associationsValue[words.indexOf(word)][i]/total<Math.random()){
+                        //for(var j=0;j<associationsValue[words.indexOf(word)][i];j++){
+                            list.push(associations[words.indexOf(word)][i])
+                        //}
+                    }
+                }
+                if(list.length==0){
+                    return [words[rand(0,words.length-1)]]
+                }
+                var list2=[]
+                var j=rand(1,3)
+                for(var i=0;i<j;i++){
+                    list2.push(list[rand(0,list.length-1)])
+                }
+                return list2
+            }
+            function process(text){
+            try{
+                if(text){
+                    text=text.replaceAll("_"," ")
+                    text=text.replaceAll("-"," ")
+                    text=[...text.toLowerCase()].filter(t => {return "abcdefghijklmnopqrstuvwxyz 1234567890'.?!".includes(t)}).join("")
+                    var newText=text.replaceAll(".","&$*")
+                    newText=newText.replaceAll("!","&$*")
+                    newText=newText.replaceAll("?","&$*")
+                    var list=newText.split("&$*")
+                    for(var i=0;i<list.length;i++){
+                        inputSentence(list[i])
+                    }
+                    var newTokens=text.toLowerCase().match(/\b[a-z'0-9]+\b|[.!?]/g) || [];
+                    tokens.push(...newTokens)
+                }
+            }catch(e){
+                alert(e+"\n"+text)
+            }
+            }
+
+            //GPT WRITTEN:
+                // --- Tokenize plain text ---
+                function tokenize(text) {
+                    // Match words or punctuation separately
+                    // Sentence ends: . ! ?
+                    return text.toLowerCase().match(/\b[a-z'0-9]+\b|[.!?]/g) || [];
+                }
+                // --- Build bigram graph ---
+                function buildGraph(tokens) {
+                    const graph = {};
+                    for (let i = 0; i < tokens.length - 1; i++) {
+                        const a = tokens[i], b = tokens[i + 1];
+                        if (a === '.' || a === '!' || a === '?') continue;
+                        if (!graph[a]) graph[a] = new Set();
+                        graph[a].add(b);
+                    }
+                    return graph;
+                }
+                // --- BFS to find shortest word path ---
+                function bfs(graph, start, goal) {
+                    if (!graph[start] || !graph[goal]) return null;
+                    const queue = [[start]];
+                    const visited = new Set([start]);
+
+                    while (queue.length > 0) {
+                        const path = queue.shift();
+                        const node = path[path.length - 1];
+                        if (node === goal) return path;
+
+                        const neighbors = graph[node] || [];
+                        for (let next of neighbors) {
+                            if (!visited.has(next)) {
+                                visited.add(next);
+                                queue.push([...path, next]);
+                            }
+                        }
+                    }
+                    return null;
+                }
+            //end
+
+            function Chatter(input,useE=true,size=20){
+                //process(input)
+                input=[...input.toLowerCase()].filter(t => {return "abcdefghijklmnopqrstuvwxyz 1234567890'".includes(t)}).join("")
+                input=input.split(" ")
+                var keyWords=[]
+                for(var i=0;i<2;i++){
+                    keyWords.push(...getAssociated(input[i]))
+                }
+
+                var graph=buildGraph(tokens)
+
+                var sentence=""
+                for(var i=0;i<keyWords.length-1;i++){
+                    var b=bfs(graph,keyWords[i],keyWords[i+1])
+                    if(b){
+                        sentence+=b.slice(0,b.length-1).join(" ")+" "
+                    }else{
+                        sentence+=keyWords[i]+". "
+                    }
+                    //sentence+="🤣😭🔥✨💕💀😱"[rand(0,6)]+" "
+                }
+                return sentence.slice(0,Math.min(size,sentence.length-1))
+            }
+
+            function Start(){
+                articleQ.push(...document.getElementById('input').value.split(' '))
+                document.getElementById("frame").srcdoc="<h1>Loading...</h1>"
+                Run()
+            }
+
+            function Run(){
+                if(loading>0&&articleQ.length>0){
+                    setTimeout(Run,100)
+                    return
+                }
+                var input=document.getElementById("input").value
+                var available=["h1","h2","h3","h4","p","div","class","button", "marquee", "label", "table", "tr", "th", "td", "ol", "ul", "li","b","strong","em","br","hr"]
+                var html="<!DOCTYPE html><html><head><title></title><style>"
+                var j=rand(20,50)
+                for(var i=0;i<j;i++){
+                    if(rand(0,20)==0){
+                        html+=" body{"
+                    }else{
+                        html+=" "+available[rand(0,available.length-1)]+["","",":hover"][rand(0,2)]+"{"
+                    }
+                        var j2=rand(1,4)
+                        for(var i2=0;i2<j2;i2++){
+                            var r=rand(0,5)
+                            if(r==0){
+                                html+="background-color:rgb("+rand(0,255)+","+rand(0,255)+","+rand(0,255)+");"
+                            }else if(r==1){
+                                html+="color:rgb("+rand(0,255)+","+rand(0,255)+","+rand(0,255)+");"
+                            }else if(r==2){
+                                html+="padding:"+rand(0,20)+"px;"
+                            }else if(r==3){
+                                html+="margin:"+rand(0,20)+"px;"
+                            }else if(r==4){
+                                html+="text-align:"+["left","right","center"][rand(0,2)]+";"
+                            }else if(r==5){
+                                html+="float:"+["left","right","center"][rand(0,2)]+";"
+                            }
+                        }
+                    html+="}"
+                }
+                html+="</style></head><body>"
+                var pending=["body","html"]
+                var el=0
+                while(pending.length>0){
+                    if(el<500&&(rand(0,2)!=0||pending.length>3)){
+                        if(rand(0,1)==0){
+                            var r=rand(0,available.length-1)
+                            html+="<"+available[r]
+                            if(["br","hr"].includes(available[r])){
+                                html+">"
+                                continue
+                            }
+                            if(available[r]=="button"){
+                                html+=" onclick='alert(\""+Chatter(input,false,rand(20,40))+"\")'"
+                            }
+                            var s=rand(-3,2)
+                            if(s<0){
+                                html+=">"
+                            }else if(s==0){
+                                html+=" style='color:rgb("+rand(0,255)+","+rand(0,255)+","+rand(0,255)+")'>"
+                            }else if(s==1){
+                                html+=" style='background-color:rgb("+rand(0,255)+","+rand(0,255)+","+rand(0,255)+")'>"
+                            }else if(s==2){
+                                html+=" title='"+Chatter(input,false,rand(20,50))+"'>"
+                            }
+                            el+=1
+                            pending.push(available[r])
+                        }else{
+                            html+=Chatter(input,false,rand(10,500))
+                        }
+                    }else{
+                        if(pending.length>2||el>400){
+                            html+="</"+pending.pop()+">"
+                        }
+                    }
+                }
+                document.getElementById("frame").srcdoc=html
+            }
+        </script>
+    </body>
+</html>

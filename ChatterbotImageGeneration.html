@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Chatterbot Image Generation</title>
+    </head>
+    <body>
+        <canvas id="Canvas" width="300" height="500"></canvas><br>
+        <button onclick="RunRandom()">Random Image</button>
+        <button onclick="run(prompt('Enter Key Words For Generation').split(' '))">Search Image</button>
+        <br>
+        <p id="state"></p>
+        <script>
+            function rand(min, max) {
+                return Math.floor(Math.random() * (max - min + 1) ) + min;
+            }
+
+            var ctx=document.getElementById("Canvas").getContext("2d");
+
+            async function getWikipediaImage(title) {
+                // Step 1: get list of images used in the article
+                const listUrl =
+                    "https://en.wikipedia.org/w/api.php" +
+                    "?action=query" +
+                    "&format=json" +
+                    "&prop=images" +
+                    "&origin=*" +
+                    "&titles=" + encodeURIComponent(title);
+
+                const listResponse = await fetch(listUrl);
+                const listData = await listResponse.json();
+
+                const pages = listData.query.pages;
+                const page = Object.values(pages)[0];
+                if (!page.images) return null;
+
+                // Step 2: clean the list
+                const imageTitles = page.images
+                    .map(img => img.title)
+                    .filter(name =>
+                    /\.(jpg|jpeg|png)$/i.test(name) &&       // real images
+                    !/icon|logo|symbol|flag|map/i.test(name) // avoid UI clutter
+                    );
+
+                if (imageTitles.length === 0) return null;
+
+                // Pick a random image
+                const randomTitle =
+                    imageTitles[Math.floor(Math.random() * imageTitles.length)];
+
+                // Step 3: get image URL
+                const infoUrl =
+                    "https://en.wikipedia.org/w/api.php" +
+                    "?action=query" +
+                    "&format=json" +
+                    "&prop=imageinfo" +
+                    "&iiprop=url" +
+                    "&origin=*" +
+                    "&titles=" + encodeURIComponent(randomTitle);
+
+                const infoResponse = await fetch(infoUrl);
+                const infoData = await infoResponse.json();
+
+                const imagePage = Object.values(infoData.query.pages)[0];
+                return imagePage.imageinfo?.[0]?.url || null;
+            }
+
+            function loadImage(url) {
+                return new Promise((resolve, reject) => {
+                    const img = new Image();
+                    img.crossOrigin = "anonymous";
+                    img.onload = () => resolve(img);
+                    img.onerror = reject;
+                    img.src = url;
+                });
+            }
+            function imageToPixelArray(img, width, height) {
+                const canvas = document.createElement("canvas");
+                canvas.width = width;
+                canvas.height = height;
+
+                const ctx = canvas.getContext("2d");
+                ctx.drawImage(img, 0, 0, width, height);
+
+                const data = ctx.getImageData(0, 0, width, height).data;
+
+                const pixels = [];
+                for (let y = 0; y < height; y++) {
+                    const row = [];
+                    for (let x = 0; x < width; x++) {
+                        const i = (y * width + x) * 4;
+                        row.push([data[i],data[i+1],data[i+2]]);
+                    }
+                    pixels.push(row);
+                }
+                return pixels;
+            }
+            async function run(titles) {
+                try{
+                document.getElementById("state").innerHTML="loading..."
+                var pixels=[]
+                for(var i=0;i<titles.length;i++){
+                    var imageUrl = await getWikipediaImage(titles[i]);
+                    if (imageUrl) {
+                        var img = await loadImage(imageUrl);
+                        pixels.push(imageToPixelArray(img, Canvas.width, Canvas.height));
+                    }
+                }
+                if(pixels.length==0){
+                    RunRandom()
+                    return
+                }
+                for(var x=0;x<Canvas.width;x++){
+                    for(var y=0;y<Canvas.height;y++){
+                        var rgb=[0,0,0]
+                        for(var i=0;i<pixels.length;i++){
+                            rgb[0]+=pixels[i][y][x][0]
+                            rgb[1]+=pixels[i][y][x][1]
+                            rgb[2]+=pixels[i][y][x][2]
+                        }
+                        rgb[0]/=pixels.length
+                        rgb[1]/=pixels.length
+                        rgb[2]/=pixels.length
+                        ctx.fillStyle="rgb("+rgb[0]+","+rgb[1]+","+rgb[2]+")"
+                        //ctx.fillStyle="rgb("+pixels[rand(0,pixels.length-1)][y][x][0]+","+pixels[rand(0,pixels.length-1)][y][x][1]+","+pixels[rand(0,pixels.length-1)][y][x][2]+")"
+                        ctx.fillRect(x,y,1,1)
+                    }
+                }
+                document.getElementById("state").innerHTML=""
+                }catch(e){
+                    alert(e)
+                }
+            }
+            function RunRandom(){
+                var list=["Earth","Moon","Sun","Solar_System","Milky_Way","Universe","Black_hole","Supernova","Neutron_star","Galaxy","Light_year",
+"Speed_of_light","Gravity","Quantum_mechanics","Relativity","DNA","Evolution","Natural_selection","Photosynthesis","Cell_(biology)","Mitochondrion","Atom","Molecule","Chemical_element","Periodic_table",
+"Water","Oxygen","Carbon","Iron","Gold","Electricity","Magnetism","Computer","Internet","World_Wide_Web","Artificial_intelligence","Machine_learning","Algorithm","Programming_language",
+"Python_(programming_language)","JavaScript","Operating_system","Linux","Microsoft_Windows","Apple_Inc.","Smartphone","Video_game","Virtual_reality","Augmented_reality","Robotics","Automation",
+"Steam_engine","Industrial_Revolution","Printing_press","Compass","Gunpowder","Wheel","Mathematics","Algebra","Geometry","Calculus","Prime_number","Infinity","Zero","Fibonacci_number","Pi","Golden_ratio","Statistics",
+"Probability","Chess","Go_(game)","Sudoku","Rubik%27s_Cube","Olympic_Games","Football","Basketball","Baseball","Tennis","Swimming","Running","Mount_Everest","Himalayas","Sahara","Amazon_rainforest",
+"Pacific_Ocean","Atlantic_Ocean","Antarctica","Arctic","Volcano","Earthquake","Tsunami","Hurricane","Tornado","Climate_change","Global_warming","Greenhouse_effect","Renewable_energy","Solar_power",
+"Wind_power","Hydroelectricity","Nuclear_power","Fossil_fuel","Oil","Coal","Natural_gas","Recycling","Pollution","Biodiversity","Endangered_species","Dinosaur","Tyrannosaurus","Triceratops","Velociraptor",
+"Mammal","Bird","Reptile","Amphibian","Fish","Insect","Honeybee","Ant","Butterfly","Spider","Octopus","Dolphin","Whale","Elephant","Lion","Human","Brain","Heart","Lung","Blood","Immune_system",
+"Virus","Bacteria","Vaccine","Antibiotic","Pandemic","Black_Death","Influenza","COVID-19","History","Ancient_Egypt","Roman_Empire","Greek_mythology","Middle_Ages","Renaissance","Age_of_Enlightenment",
+"French_Revolution","American_Revolution","World_War_I","World_War_II","Cold_War","Space_Race","Apollo_11","Moon_landing","International_Space_Station","NASA","SpaceX","Rocket","Satellite","GPS",
+"Astronaut","Time","Calendar","Leap_year","Time_zone","Philosophy","Ethics","Logic","Psychology","Cognition","Memory","Emotion","Consciousness","Language","Linguistics","Alphabet","Writing","Printing",
+"Book","Library","Education","School","University","Science","Technology","Engineering","Medicine","Economics","Supply_and_demand","Inflation","Cryptocurrency","Bitcoin","Blockchain"]
+                var keys=[]
+                for(var i=0;i<4;i++){
+                    keys.push(list[rand(0,list.length-1)])
+                }
+                run(keys)
+            }
+        </script>
+    </body>
+</html>
